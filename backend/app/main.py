@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.services.youtube_service import get_transcript
+from app.services.chunk_service import chunk_text
+from app.services.embedding_service import create_embeddings
+from app.services.similarity_service import compare_embeddings
 
 app = FastAPI(
     title="Video RAG Analyzer",
@@ -37,8 +41,26 @@ class VideoRequest(BaseModel):
 @app.post("/analyze")
 def analyze(data: VideoRequest):
 
+    transcript_a = get_transcript(data.video_a)
+    transcript_b = get_transcript(data.video_b)
+
+    text_a = " ".join([item.text for item in transcript_a])
+    text_b = " ".join([item.text for item in transcript_b])
+
+    chunks_a = chunk_text(text_a)
+    chunks_b = chunk_text(text_b)
+
+    embeddings_a = create_embeddings(chunks_a)
+    embeddings_b = create_embeddings(chunks_b)
+
+    similarity = compare_embeddings(
+        embeddings_a,
+        embeddings_b
+    )
+
     return {
-        "video_a": data.video_a,
-        "video_b": data.video_b,
-        "status": "received"
+        "similarity_score": round(similarity * 100, 2),
+        "video_a_chunks": len(chunks_a),
+        "video_b_chunks": len(chunks_b),
+        "status": "compared"
     }
