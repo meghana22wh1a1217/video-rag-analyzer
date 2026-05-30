@@ -6,7 +6,7 @@ from app.services.chunk_service import chunk_text
 from app.services.embedding_service import create_embeddings
 from app.services.similarity_service import compare_embeddings
 from app.services.vector_store import store_chunks
-
+from app.services.retrieval_service import retrieve_chunks
 app = FastAPI(
     title="Video RAG Analyzer",
     version="1.0.0"
@@ -39,6 +39,8 @@ def health():
 class VideoRequest(BaseModel):
     video_a: str
     video_b: str
+class QueryRequest(BaseModel):
+    question: str
 @app.post("/analyze")
 def analyze(data: VideoRequest):
 
@@ -70,10 +72,27 @@ def analyze(data: VideoRequest):
     )
 
     return {
-        "similarity_score": round(similarity * 100, 2),
-        "video_a_chunks": len(chunks_a),
-        "video_b_chunks": len(chunks_b),
-        "stored_video_a_chunks": stored_a,
-        "stored_video_b_chunks": stored_b,
-        "status": "stored_in_chromadb"
+    "similarity_score": round(similarity * 100, 2),
+    "video_a_chunks": len(chunks_a),
+    "video_b_chunks": len(chunks_b),
+    "stored_video_a_chunks": stored_a,
+    "stored_video_b_chunks": stored_b,
+    "status": "stored_in_chromadb"
+}
+
+
+@app.post("/query")
+def query(data: QueryRequest):
+
+    question_embedding = create_embeddings(
+        [data.question]
+    )[0]
+
+    results = retrieve_chunks(
+        question_embedding
+    )
+
+    return {
+        "question": data.question,
+        "results": results
     }
